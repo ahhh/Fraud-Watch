@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>AI-text detector demo</title>
+    <style>
+      body { font-family: Georgia, serif; max-width: 640px; margin: 50px auto; line-height: 1.6; }
+      h1 { font-family: sans-serif; }
+    </style>
+  </head>
+  <body>
+    <!--
+      DEMO FIXTURE for the AI-text ("slop") detector. Serve over http, open the
+      Fraud Watch popup, and click "Scan this page". The first paragraph reads
+      like a human; the next two are dense LLM boilerplate and should highlight
+      amber/red with score badges. Works with the local heuristic alone (no
+      endpoint needed); if you point it at a self-hosted sloptotal server the
+      scores are refined.
+    -->
+    <h1>Notes on getting the thing working</h1>
+
+    <p>
+      Honestly I wasn't sure this would work at first. I spent a couple hours
+      poking at it last night and hit a wall — the endpoint kept timing out and
+      I couldn't figure out why. Turned out my URL had a typo. Classic. It's
+      running now and I'm happy with it, even if the code is a bit messy.
+    </p>
+
+    <p>
+      In today's fast-paced world, it is important to note that leveraging
+      robust, seamless solutions plays a crucial role in navigating the
+      complexities of modern business. Furthermore, organizations must delve
+      into the ever-evolving landscape to unlock the potential of cutting-edge
+      technology. Moreover, this holistic approach empowers teams to elevate
+      their performance and foster a sense of synergy.
+    </p>
+
+    <p>
+      Ultimately, this is a testament to the transformative power of innovation.
+      It is worth noting that a rich tapestry of stakeholders must gain a deeper
+      understanding of these dynamics. In conclusion, when it comes to
+      sustainable growth, we must pave the way and shed light on the
+      multifaceted opportunities that lie ahead.
+    </p>
+  </body>
+</html>

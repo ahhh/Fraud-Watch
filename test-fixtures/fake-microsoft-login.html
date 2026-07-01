@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Sign in to your Microsoft account</title>
+    <style>
+      body { font-family: 'Segoe UI', sans-serif; max-width: 360px; margin: 60px auto; }
+      input { display: block; width: 100%; padding: 8px; margin: 8px 0; }
+    </style>
+  </head>
+  <body>
+    <!--
+      DEMO FIXTURE — a fake Microsoft sign-in. Serve over http and note the
+      domain is NOT microsoft.com. Expected: credential_theft + brand_
+      impersonation, inline warning banner. (Score depends on the host domain
+      you serve it from; localhost still triggers the brand-claim signal.)
+    -->
+    <h1>Microsoft</h1>
+    <p>Sign in to continue to Office 365</p>
+    <form action="/login" method="post">
+      <input type="email" name="email" placeholder="Email or phone" />
+      <input type="password" name="password" placeholder="Password" />
+      <button type="submit">Sign in</button>
+    </form>
+  </body>
+</html>

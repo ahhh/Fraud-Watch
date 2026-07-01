@@ -1,0 +1,29 @@
+{
+  "name": "fraud-watch",
+  "description": "Local-first fraud-defense browser agent. Watches for high-risk user intent, extracts minimal redacted evidence, runs local deterministic detectors, and warns before harm occurs.",
+  "private": true,
+  "version": "0.1.0",
+  "license": "MIT",
+  "author": "Dan Borges",
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox",
+    "build": "wxt build",
+    "build:firefox": "wxt build -b firefox",
+    "zip": "wxt zip",
+    "typecheck": "tsc --noEmit",
+    "postinstall": "wxt prepare"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "wxt": "^0.20.27"
+  },
+  "_overrides_note": "Overrides below force patched versions of vulnerable transitive dev-only deps pulled in by WXT's Firefox tooling / bundler.",
+  "overrides": {
+    "esbuild": "^0.28.1",
+    "shell-quote": "^1.8.4",
+    "tmp": "^0.2.6",
+    "uuid": "^11.1.1"
+  }
+}
