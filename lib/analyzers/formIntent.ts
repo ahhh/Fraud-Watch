@@ -73,6 +73,23 @@ export function analyzeFormIntent(ctx: AnalyzerContext): AnalyzerResult | null {
       evidence.push('This page collects a one-time / 2FA code.');
     }
 
+    // Non-web submission scheme: a form pointing at file:/data:/javascript:
+    // almost never happens on a real site. It's the tell of a saved-and-rehosted
+    // phishing kit whose <form action> still references the attacker's machine.
+    if (
+      fields.size > 0 &&
+      form.submitScheme &&
+      form.submitScheme !== 'http:' &&
+      form.submitScheme !== 'https:'
+    ) {
+      score += 22;
+      bump('high');
+      categories.add('phishing');
+      evidence.push(
+        `A form on this page submits to a "${form.submitScheme}" location instead of a normal web address — a sign the page is a copied/rehosted phishing kit.`,
+      );
+    }
+
     // Cross-origin submission: form posts somewhere other than the page domain.
     if (form.submitOrigin) {
       const target = hrefToDomain(form.submitOrigin);

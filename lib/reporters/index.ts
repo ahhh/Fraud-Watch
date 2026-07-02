@@ -12,44 +12,24 @@ import { ncscReporter } from './ncsc';
  */
 export const REPORTERS: Reporter[] = [
   ncscReporter, // plain Drupal webform — auto-submits
-  {
-    // Netcraft's report form (POST /api/report/urls) is gated by reCAPTCHA v3
-    // (site key 6LcUG5gaAAAA…, action "report_urls", verified via /captcha/verify).
-    // A valid token can only be produced by grecaptcha in a real page, so a
-    // background submission can't pass it — kept skipped per the "no captcha" rule.
-    id: 'netcraft',
-    label: 'Netcraft',
-    homepage: 'https://report.netcraft.com/report',
-    enabled: false,
-    disabledReason: 'protected by reCAPTCHA (v3)',
-    async submit() {
-      return skip('netcraft', 'Netcraft', 'protected by reCAPTCHA (v3)');
-    },
-  },
-  {
-    id: 'microsoft',
-    label: 'Microsoft (WDSI)',
-    homepage: 'https://www.microsoft.com/en-us/wdsi/support/report-unsafe-site-guest',
-    enabled: false,
-    disabledReason: 'protected by CAPTCHA',
-    async submit() {
-      return skip('microsoft', 'Microsoft (WDSI)', 'protected by CAPTCHA');
-    },
-  },
+  // Netcraft and Microsoft (WDSI) were removed from the UI at the user's
+  // request; both are reCAPTCHA-gated and were only ever manual links anyway.
   {
     id: 'google',
     label: 'Google Safe Browsing',
     homepage: 'https://safebrowsing.google.com/safebrowsing/report_phish/',
     enabled: false,
     disabledReason: 'protected by reCAPTCHA',
+    manualReportUrl: (url) =>
+      `https://safebrowsing.google.com/safebrowsing/report_phish/?url=${encodeURIComponent(url)}`,
     async submit() {
       return skip('google', 'Google Safe Browsing', 'protected by reCAPTCHA');
     },
   },
 ];
 
-function skip(authority: string, label: string, detail: string): ReporterResult {
-  return { authority, label, status: 'skipped', detail };
+function skip(authority: string, label: string, detail: string, manualUrl?: string): ReporterResult {
+  return { authority, label, status: 'skipped', detail, manualUrl };
 }
 
 async function hasOriginPermission(pattern: string): Promise<boolean> {
@@ -67,8 +47,15 @@ async function hasOriginPermission(pattern: string): Promise<boolean> {
 export async function runReporters(reportUrl: string): Promise<ReporterResult[]> {
   return Promise.all(
     REPORTERS.map(async (r) => {
+      const manualUrl = r.manualReportUrl?.(reportUrl);
       if (!r.enabled) {
-        return { authority: r.id, label: r.label, status: 'skipped', detail: r.disabledReason };
+        return {
+          authority: r.id,
+          label: r.label,
+          status: 'skipped',
+          detail: r.disabledReason,
+          manualUrl,
+        } satisfies ReporterResult;
       }
       if (r.originPattern && !(await hasOriginPermission(r.originPattern))) {
         return {
@@ -76,6 +63,7 @@ export async function runReporters(reportUrl: string): Promise<ReporterResult[]>
           label: r.label,
           status: 'skipped',
           detail: 'reporting permission not granted',
+          manualUrl,
         } satisfies ReporterResult;
       }
       return r.submit(reportUrl);

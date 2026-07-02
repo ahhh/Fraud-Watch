@@ -118,6 +118,19 @@ async function handleMessage(
       return { source: MESSAGE_SOURCE, type: 'verdict', verdict: null, allowlisted: msg.allowed };
     }
 
+    case 'close_tab': {
+      // Close the requesting tab via the tabs API (a content-script window.close()
+      // is refused for tabs the page didn't open). No "tabs" permission needed.
+      if (typeof tabId === 'number') {
+        try {
+          await browser.tabs.remove(tabId);
+        } catch {
+          /* tab already gone */
+        }
+      }
+      return empty;
+    }
+
     case 'report_site': {
       // Forward to every enabled authority (background so we bypass CORS), then
       // record locally so future visits are flagged (plan §12).

@@ -12,6 +12,13 @@ export interface ReporterResult {
   label: string; // human label for the UI
   status: SubmissionStatus; // submitted | skipped | failed
   detail?: string;
+  /**
+   * For authorities we can't auto-submit (CAPTCHA/email), the pre-filled report
+   * page the user can open to finish the report themselves. reCAPTCHA tokens are
+   * origin-bound to the authority's domain and these sites forbid framing, so
+   * the captcha can only be solved on their own page — not proxied into our UI.
+   */
+  manualUrl?: string;
 }
 
 export interface Reporter {
@@ -32,4 +39,9 @@ export interface Reporter {
   originPattern?: string;
   /** Perform the submission for `reportUrl`. Only called when `enabled`. */
   submit(reportUrl: string): Promise<ReporterResult>;
+  /**
+   * For CAPTCHA/email-gated authorities, build the pre-filled report page URL
+   * the user can open to finish manually. Used even when `enabled` is false.
+   */
+  manualReportUrl?(reportUrl: string): string;
 }

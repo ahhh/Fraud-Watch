@@ -157,17 +157,31 @@ without a CAPTCHA or a required email address are attempted automatically:
 | Microsoft (WDSI) | ⏭️ Skipped | Protected by CAPTCHA. |
 | Google Safe Browsing | ⏭️ Skipped | Protected by reCAPTCHA. |
 
-The popup shows each authority's outcome (submitted / skipped + reason). The
-skipped adapters are kept in `lib/reporters/` so a captcha-free/email-free path
-can be enabled later without touching the rest of the flow. Extensions with host
-permission are not subject to CORS, which is why the background `POST` reaches
-the authority even though a web page could not do the same.
+The popup shows each authority's outcome (submitted / skipped + reason). For the
+CAPTCHA/email-gated ones, it also offers an **"Open report page ↗"** button that
+opens the authority's own report form (pre-filled with the URL where supported —
+Google and Netcraft accept `?url=`). The captcha runs on the authority's own
+origin there; it cannot be proxied into the extension popup, because reCAPTCHA
+tokens are bound to the authority's registered domains and these sites forbid
+being framed.
+
+Implementation notes:
+
+- Extensions with host permission are not subject to CORS, which is why the
+  background `POST` reaches the authority even though a web page could not.
+- NCSC rejects cross-origin POSTs (`Origin` mismatch → HTTP 403). A
+  service-worker `fetch` always sends `Origin: chrome-extension://<id>`, so a
+  narrow `declarativeNetRequest` session rule strips the `Origin` header for that
+  one endpoint (verified: no-Origin → 200). This is gated by the same host
+  permission the user granted for reporting.
+- The skipped adapters live in `lib/reporters/` so a captcha-free/email-free path
+  can be enabled later without touching the rest of the flow.
 
 ## License
 
 MIT — see [`LICENSE`](./LICENSE). You may use, modify, and redistribute this
 software, including commercially, provided you retain the copyright and license
-notice (attribution). Third-party dependency licenses (including MPL-2.0
-components such as `webextension-polyfill`) are documented in
+notice (attribution). Third-party dependency licenses (including the MPL-2.0
+build tooling pulled in by WXT) are documented in
 [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md); keep both files when
 redistributing.

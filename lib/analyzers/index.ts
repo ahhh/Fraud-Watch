@@ -2,6 +2,8 @@ import type { AnalyzerResult, PageFeatures } from '@/lib/types';
 import { analyzeUrlDomain } from './urlDomain';
 import { analyzeFormIntent } from './formIntent';
 import { analyzePopupScareware } from './popupScareware';
+import { analyzeExfilBeacon } from './exfilBeacon';
+import { analyzeSocialEngineering } from './socialEngineering';
 import { analyzeUserReport } from './userReport';
 
 /**
@@ -27,6 +29,8 @@ export const ANALYZERS: Analyzer[] = [
   analyzeUrlDomain,
   analyzeFormIntent,
   analyzePopupScareware,
+  analyzeExfilBeacon,
+  analyzeSocialEngineering,
 ];
 
 /** Run every analyzer, dropping the ones that had nothing to say (null). */
@@ -39,4 +43,11 @@ export function runAnalyzers(ctx: AnalyzerContext): AnalyzerResult[] {
   return out;
 }
 
-export { analyzeUrlDomain, analyzeFormIntent, analyzePopupScareware, analyzeUserReport };
+export {
+  analyzeUrlDomain,
+  analyzeFormIntent,
+  analyzePopupScareware,
+  analyzeExfilBeacon,
+  analyzeSocialEngineering,
+  analyzeUserReport,
+};

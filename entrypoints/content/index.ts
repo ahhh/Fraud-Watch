@@ -3,6 +3,7 @@ import { browser } from 'wxt/browser';
 import {
   MESSAGE_SOURCE,
   type AnalyzePageMessage,
+  type CloseTabMessage,
   type ReportSiteMessage,
   type RiskVerdict,
   type SetAllowlistMessage,
@@ -73,6 +74,10 @@ export default defineContentScript({
               domain: features.displayDomain,
             };
             void browser.runtime.sendMessage(report).catch(() => {});
+          },
+          onCloseTab: () => {
+            const close: CloseTabMessage = { source: MESSAGE_SOURCE, type: 'close_tab' };
+            void browser.runtime.sendMessage(close).catch(() => {});
           },
         });
       } catch (err) {

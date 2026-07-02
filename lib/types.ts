@@ -30,6 +30,12 @@ export interface FormSummary {
   fields: string[];
   /** Origin the form posts to, so we can flag off-brand submission targets. */
   submitOrigin: string | null;
+  /**
+   * URL scheme of the resolved form action, e.g. "https:", "file:", "data:".
+   * Anything other than http/https is a strong "rehosted kit" tell — a saved
+   * phishing page still points its <form action> at the attacker's local path.
+   */
+  submitScheme: string | null;
   /** Number of password-type inputs (a strong login/credential signal). */
   passwordFieldCount: number;
 }
@@ -51,6 +57,21 @@ export interface PopupSummary {
 }
 
 /**
+ * Signals derived from the page's own scripts and resource URLs (never their
+ * *content*, only booleans). Phishing kits leak themselves here: silent
+ * exfiltration to a chat bot / webhook, victim-IP fingerprinting, and
+ * client-side payment-QR generation are all near-certain kit tells.
+ */
+export interface ScriptSignals {
+  /** Inline JS posts captured data to a chat/webhook endpoint (Telegram/Discord/Slack). */
+  exfilBeacon: boolean;
+  /** Page fetches the visitor's IP / geolocation from a lookup API (victim fingerprinting). */
+  ipLookup: boolean;
+  /** Page generates a payment QR / uses instant-payment rails client-side. */
+  paymentBeacon: boolean;
+}
+
+/**
  * The redacted evidence a content script extracts from a page. This is the
  * client-side analogue of the plan's RiskEvidenceBundle.page (§5), minus
  * anything the backend would need. All text is already redacted (see redaction.ts).
@@ -65,6 +86,7 @@ export interface PageFeatures {
   forms: FormSummary[];
   links: LinkSummary[];
   popup: PopupSummary;
+  scripts: ScriptSignals;
 }
 
 /** Severity ladder shared by signals and analyzer results. */
@@ -170,11 +192,22 @@ export interface ReportSiteMessage {
   domain: string;
 }
 
+/**
+ * Content -> background: close the sender's tab. Done in the background via the
+ * tabs API because a content script's `window.close()` is refused (and logs a
+ * warning) for any tab the page's own scripts didn't open.
+ */
+export interface CloseTabMessage {
+  source: typeof MESSAGE_SOURCE;
+  type: 'close_tab';
+}
+
 export type RequestMessage =
   | AnalyzePageMessage
   | GetVerdictMessage
   | SetAllowlistMessage
-  | ReportSiteMessage;
+  | ReportSiteMessage
+  | CloseTabMessage;
 
 /** Background -> content: the verdict + which UX action to render. */
 export interface VerdictResponse {
@@ -191,6 +224,8 @@ export interface ReportAuthorityResult {
   label: string;
   status: 'submitted' | 'skipped' | 'failed';
   detail?: string;
+  /** Pre-filled report page to open when the authority can't be auto-submitted. */
+  manualUrl?: string;
 }
 
 /** Background -> content/popup: reporting result. */

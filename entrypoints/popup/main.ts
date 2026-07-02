@@ -121,12 +121,28 @@ function renderReportStatus(submissions: ReportAuthorityResult[]): void {
   if (!box) return;
   const icon = (s: string) => (s === 'submitted' ? '✓' : s === 'failed' ? '✕' : '–');
   box.innerHTML = submissions
-    .map(
-      (s) =>
-        `<div class="row"><span>${icon(s.status)} ${escapeHtml(s.label)}</span>` +
-        `<span class="pts">${escapeHtml(s.detail ?? s.status)}</span></div>`,
-    )
+    .map((s) => {
+      const left = `${icon(s.status)} ${escapeHtml(s.label)}`;
+      const detail = escapeHtml(s.detail ?? s.status);
+      // CAPTCHA/email-gated authorities can't be auto-submitted — make the whole
+      // row a clickable link that opens their pre-filled report page in a tab
+      // (the captcha runs there, on the authority's own origin).
+      if (s.manualUrl) {
+        return (
+          `<button class="row rowlink" data-open="${escapeHtml(s.manualUrl)}" ` +
+          `title="Open ${escapeHtml(s.label)} report page">` +
+          `<span>${left}</span><span class="pts">${detail} ↗</span></button>`
+        );
+      }
+      return `<div class="row"><span>${left}</span><span class="pts">${detail}</span></div>`;
+    })
     .join('');
+  for (const btn of box.querySelectorAll<HTMLButtonElement>('[data-open]')) {
+    btn.addEventListener('click', () => {
+      const url = btn.getAttribute('data-open');
+      if (url) void browser.tabs.create({ url });
+    });
+  }
 }
 
 function wireReport(domain: string): void {

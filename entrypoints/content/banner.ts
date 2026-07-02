@@ -15,6 +15,8 @@ export interface BannerCallbacks {
   onDismiss: () => void;
   onAllowlist: () => void;
   onReport: () => void;
+  /** Close the current tab (delegated to the background tabs API). */
+  onCloseTab: () => void;
 }
 
 const TIER_STYLE: Record<
@@ -43,19 +45,20 @@ export function renderBanner(verdict: RiskVerdict, cb: BannerCallbacks): void {
   }
   removeBanner();
 
+  const isBlock = verdict.action === 'block';
   const host = document.createElement('div');
   host.id = HOST_ID;
+  // Block takes over the top half of the viewport; warn/step-up stay a slim bar.
   host.style.cssText =
     'all: initial; position: fixed; top: 0; left: 0; right: 0; z-index: 2147483647;';
   const shadow = host.attachShadow({ mode: 'closed' });
 
   const tier = TIER_STYLE[verdict.action] ?? TIER_STYLE.warn!;
   const evidenceItems = verdict.evidence
-    .slice(0, 4)
+    .slice(0, isBlock ? 6 : 4)
     .map((e) => `<li>${escapeHtml(e)}</li>`)
     .join('');
-  const continueLabel =
-    verdict.action === 'block' ? 'I understand the risk, continue' : 'Dismiss';
+  const continueLabel = isBlock ? 'Ignore and continue anyway' : 'Dismiss';
 
   shadow.innerHTML = `
     <style>
@@ -72,18 +75,38 @@ export function renderBanner(verdict: RiskVerdict, cb: BannerCallbacks): void {
         align-items: flex-start;
         line-height: 1.4;
       }
+      /* Block: a large, unmissable red panel filling the top ~55% of the screen. */
+      .bar.block {
+        min-height: 55vh;
+        box-sizing: border-box;
+        background: linear-gradient(180deg, #991b1b 0%, #7f1d1d 100%);
+        border-bottom: 6px solid #ef4444;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 32px 24px;
+        gap: 10px;
+      }
       .icon { font-size: 22px; line-height: 1; flex: 0 0 auto; margin-top: 2px; }
+      .block .icon { font-size: 56px; margin: 0; }
       .body { flex: 1 1 auto; min-width: 0; }
+      .block .body { flex: 0 0 auto; max-width: 720px; }
       .tag {
         display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .06em;
         text-transform: uppercase; background: ${tier.accent}; color: #1a1a1a;
         padding: 2px 7px; border-radius: 4px; margin-bottom: 6px;
       }
+      .block .tag { font-size: 13px; padding: 4px 12px; }
       .headline { font-size: 15px; font-weight: 700; margin: 0 0 6px; }
+      .block .headline { font-size: 28px; margin: 10px 0 12px; }
       .rating { font-weight: 400; opacity: .85; font-size: 13px; }
       ul { margin: 6px 0 10px; padding-left: 18px; font-size: 13px; }
+      .block ul { display: inline-block; text-align: left; font-size: 15px; margin: 4px auto 18px; }
       li { margin: 2px 0; }
+      .block li { margin: 6px 0; }
       .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+      .block .actions { justify-content: center; gap: 12px; margin-top: 8px; }
       button {
         font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
         border-radius: 6px; padding: 7px 12px; border: 1px solid rgba(255,255,255,.35);
@@ -91,17 +114,25 @@ export function renderBanner(verdict: RiskVerdict, cb: BannerCallbacks): void {
       }
       button:hover { background: rgba(255,255,255,.22); }
       button.primary { background: #fff; color: #111; border-color: #fff; }
+      /* The highlighted, recommended action on a block panel. */
+      .block button.primary {
+        font-size: 18px; font-weight: 800; padding: 14px 28px; border-radius: 10px;
+        background: #fff; color: #7f1d1d; box-shadow: 0 6px 20px rgba(0,0,0,.35);
+      }
+      .block button.primary:hover { background: #ffe4e6; }
+      .block button:not(.primary) { font-size: 13px; opacity: .9; }
       .close { margin-left: auto; background: transparent; border: none; font-size: 18px; padding: 0 4px; }
+      .block .close { position: absolute; top: 12px; right: 16px; margin: 0; }
     </style>
-    <div class="bar" role="alertdialog" aria-label="Fraud Watch warning">
-      <div class="icon">${verdict.action === 'block' ? '🛑' : '⚠️'}</div>
+    <div class="bar ${isBlock ? 'block' : ''}" role="alertdialog" aria-label="Fraud Watch warning">
+      <div class="icon">${isBlock ? '🛑' : '⚠️'}</div>
       <div class="body">
         <span class="tag">${tier.label}</span>
         <span class="rating">· Risk ${verdict.rating}/10</span>
         <p class="headline">${escapeHtml(verdict.userMessage)}</p>
         <ul>${evidenceItems}</ul>
         <div class="actions">
-          <button class="primary" data-act="close">Leave / close this page</button>
+          <button class="primary" data-act="leave">Leave this page</button>
           <button data-act="report">Report site</button>
           <button data-act="allow">Trust this site</button>
           <button data-act="continue">${escapeHtml(continueLabel)}</button>
@@ -116,15 +147,16 @@ export function renderBanner(verdict: RiskVerdict, cb: BannerCallbacks): void {
     const act = target?.getAttribute('data-act');
     if (!act) return;
     switch (act) {
-      case 'close':
-        // Best-effort: many pages block window.close(); navigate away as fallback.
-        removeBanner();
-        try {
-          window.close();
-        } catch {
-          /* ignore */
+      case 'leave':
+        // Take the user back where they came from. If there's no history, ask
+        // the background to close the tab via the tabs API — a content-script
+        // window.close() is refused (and logs a warning) for tabs the page's own
+        // scripts didn't open. We never blank/replace the page.
+        if (history.length > 1) {
+          history.back();
+        } else {
+          cb.onCloseTab();
         }
-        location.replace('about:blank');
         break;
       case 'report': {
         cb.onReport();

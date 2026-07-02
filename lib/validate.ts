@@ -40,6 +40,8 @@ export function parseRequest(raw: unknown): RequestMessage | null {
         typeof (raw as { domain?: unknown }).domain === 'string'
         ? (raw as unknown as RequestMessage)
         : null;
+    case 'close_tab':
+      return raw as unknown as RequestMessage;
     default:
       return null;
   }
@@ -59,6 +61,15 @@ export function validatePageFeatures(v: unknown): v is PageFeatures {
     typeof p.fullscreenLike !== 'boolean' ||
     typeof p.systemWarningLanguage !== 'boolean' ||
     typeof p.remoteSupportLanguage !== 'boolean'
+  ) {
+    return false;
+  }
+  if (!isObj(v.scripts)) return false;
+  const s = v.scripts;
+  if (
+    typeof s.exfilBeacon !== 'boolean' ||
+    typeof s.ipLookup !== 'boolean' ||
+    typeof s.paymentBeacon !== 'boolean'
   ) {
     return false;
   }

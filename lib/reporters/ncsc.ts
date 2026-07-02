@@ -1,3 +1,4 @@
+import { browser } from 'wxt/browser';
 import type { Reporter, ReporterResult } from './types';
 
 /**
@@ -49,9 +50,46 @@ export function buildNcscBody(reportUrl: string, tokens: NcscFormTokens): string
   return params.toString();
 }
 
+/**
+ * Fixed id for our session DNR rule. NCSC 403s any POST whose `Origin` header
+ * isn't same-origin; a service-worker fetch always sends `chrome-extension://…`,
+ * so we strip the header for this exact endpoint (verified: no-Origin → 200).
+ */
+const ORIGIN_STRIP_RULE_ID = 4801;
+
+async function ensureOriginStripRule(): Promise<void> {
+  const dnr = browser.declarativeNetRequest;
+  if (!dnr?.updateSessionRules) return;
+  try {
+    await dnr.updateSessionRules({
+      removeRuleIds: [ORIGIN_STRIP_RULE_ID],
+      addRules: [
+        {
+          id: ORIGIN_STRIP_RULE_ID,
+          priority: 1,
+          action: {
+            type: 'modifyHeaders',
+            requestHeaders: [{ header: 'origin', operation: 'remove' }],
+          },
+          condition: {
+            urlFilter: '|https://www.ncsc.gov.uk/section/about-this-website/report-scam-website',
+            requestMethods: ['post'],
+            resourceTypes: ['xmlhttprequest', 'other'],
+          },
+        },
+      ],
+    } as Parameters<typeof dnr.updateSessionRules>[0]);
+  } catch {
+    /* best effort — if DNR is unavailable the POST will 403 and be reported failed */
+  }
+}
+
 async function submit(reportUrl: string): Promise<ReporterResult> {
   const base = { authority: 'ncsc', label: 'NCSC (UK)' } as const;
   try {
+    // 0. Strip the cross-origin `Origin` header so NCSC doesn't 403 the POST.
+    await ensureOriginStripRule();
+
     // 1. Fetch the form to obtain fresh anti-tamper tokens + any cookies.
     const page = await fetch(NCSC_FORM_URL, { credentials: 'include' });
     if (!page.ok) {

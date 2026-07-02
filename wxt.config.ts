@@ -10,7 +10,11 @@ export default defineConfig({
     name: 'Fraud Watch',
     description:
       'Local-first fraud defense. Watches for high-risk moments, extracts minimal redacted evidence, runs local detectors, and warns before harm occurs.',
-    permissions: ['storage', 'activeTab', 'scripting'],
+    // `declarativeNetRequestWithHostAccess` lets us strip the `Origin` header on
+    // the NCSC report POST (their server 403s cross-origin POSTs, and a
+    // service-worker fetch always sends Origin: chrome-extension://<id>). The
+    // rule only applies to hosts the user has granted host access to.
+    permissions: ['storage', 'activeTab', 'scripting', 'declarativeNetRequestWithHostAccess'],
     // Opt-in host access for the OPTIONAL AI-text detector. We do not request
     // any host at install; when the user configures a self-hosted sloptotal
     // endpoint, the popup requests permission for just that origin at runtime

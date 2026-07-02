@@ -259,6 +259,33 @@ button.on {
   background: #2a2012;
 }
 
+/* A report-status row that is itself a clickable link (opens the report page). */
+.rowlink {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 6px;
+  margin: 1px 0;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  color: #6ea8fe;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.rowlink:hover {
+  background: var(--panel);
+  border-color: var(--line);
+}
+
+.rowlink .pts {
+  color: #6ea8fe;
+}
+
 .foot {
   padding: 10px 14px;
   border-top: 1px solid var(--line);
