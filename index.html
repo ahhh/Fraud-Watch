@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fraud Watch — local-first fraud defense for your browser</title>
+<meta name="description" content="Download and install Fraud Watch, a local-first fraud-defense browser extension. Runs deterministic detectors on-device and warns before harm occurs.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👁️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75,500;75,700;75,900&family=Public+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F3F5F8;
+    --card: #FFFFFF;
+    --ink: #151A22;
+    --muted: #5A6472;
+    --hairline: #D6DBE3;
+    --amber: #E8930C;
+    --allow: #2E7D4F;
+    --warn: #D96B0B;
+    --block: #C6363C;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --display: "Archivo", "Arial Narrow", sans-serif;
+    --body: "Public Sans", system-ui, -apple-system, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 1.0625rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+  a:focus-visible, button:focus-visible {
+    outline: 3px solid var(--amber);
+    outline-offset: 2px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---- tier strip: the extension's policy scale, used as the page's ruler ---- */
+  .tier-strip {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    height: 10px;
+  }
+  .tier-strip span:nth-child(1) { background: var(--allow); }
+  .tier-strip span:nth-child(2) { background: #9BB33A; }
+  .tier-strip span:nth-child(3) { background: var(--amber); }
+  .tier-strip span:nth-child(4) { background: var(--warn); }
+  .tier-strip span:nth-child(5) { background: var(--block); }
+
+  header.top {
+    border-bottom: 1px solid var(--hairline);
+    background: var(--card);
+  }
+  .top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0;
+  }
+  .brand {
+    font-family: var(--display);
+    font-weight: 900;
+    font-stretch: 75%;
+    font-size: 1.25rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    text-decoration: none;
+  }
+  .brand .eye { color: var(--amber); }
+  .top-bar nav a {
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    text-decoration: none;
+    margin-left: 20px;
+    color: var(--muted);
+  }
+  .top-bar nav a:hover { color: var(--ink); }
+
+  /* ---- hero ---- */
+  .hero { padding: 72px 0 64px; }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    gap: 56px;
+    align-items: center;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--warn);
+  }
+  h1 {
+    font-family: var(--display);
+    font-weight: 900;
+    font-stretch: 75%;
+    font-size: clamp(2.6rem, 6vw, 4.2rem);
+    line-height: 0.98;
+    letter-spacing: 0.005em;
+    text-transform: uppercase;
+    margin: 14px 0 20px;
+  }
+  h1 .accent { color: var(--block); }
+  .hero p.lede { max-width: 34em; color: var(--muted); }
+  .hero p.lede strong { color: var(--ink); }
+
+  .dl-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+  .btn {
+    display: inline-block;
+    font-family: var(--display);
+    font-stretch: 75%;
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    text-decoration: none;
+    padding: 14px 22px;
+    border: 2px solid var(--ink);
+  }
+  .btn-primary { background: var(--ink); color: var(--paper); }
+  .btn-primary:hover { background: var(--block); border-color: var(--block); }
+  .btn-secondary { background: transparent; color: var(--ink); }
+  .btn-secondary:hover { border-color: var(--block); color: var(--block); }
+  .dl-meta {
+    margin-top: 14px;
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    color: var(--muted);
+  }
+  .dl-meta a { color: var(--muted); }
+
+  /* ---- signature: verdict card, the popup catching a phishing page ---- */
+  .verdict {
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-top: 6px solid var(--block);
+    box-shadow: 0 12px 32px rgba(21, 26, 34, 0.10);
+    padding: 20px 22px 22px;
+    font-size: 0.9rem;
+    max-width: 400px;
+    justify-self: end;
+    width: 100%;
+  }
+  .verdict .vc-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .verdict .vc-site { color: var(--ink); font-weight: 600; overflow-wrap: anywhere; }
+  .vc-rating { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+  .vc-score {
+    font-family: var(--display);
+    font-stretch: 75%;
+    font-weight: 900;
+    font-size: 3.4rem;
+    line-height: 1;
+    color: var(--block);
+  }
+  .vc-score small {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--muted);
+  }
+  .vc-tier {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: #fff;
+    background: var(--block);
+    padding: 4px 10px;
+  }
+  .vc-why { list-style: none; margin-bottom: 16px; }
+  .vc-why li {
+    padding: 7px 0 7px 18px;
+    border-top: 1px dashed var(--hairline);
+    position: relative;
+    color: var(--ink);
+  }
+  .vc-why li::before {
+    content: "▲";
+    position: absolute;
+    left: 0;
+    top: 8px;
+    font-size: 0.6rem;
+    color: var(--warn);
+  }
+  .vc-bars { display: grid; gap: 8px; }
+  .vc-bar {
+    display: grid;
+    grid-template-columns: 15ch 1fr 3ch;
+    gap: 10px;
+    align-items: center;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+  .vc-bar .track { display: block; height: 6px; background: var(--paper); }
+  .vc-bar .fill { display: block; height: 100%; background: var(--warn); }
+  .vc-bar:first-child .fill { background: var(--block); }
+
+  /* ---- sections ---- */
+  section { padding: 64px 0; }
+  section + section { border-top: 1px solid var(--hairline); }
+  h2 {
+    font-family: var(--display);
+    font-weight: 900;
+    font-stretch: 75%;
+    font-size: clamp(1.7rem, 3.4vw, 2.4rem);
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+    margin-bottom: 8px;
+  }
+  .section-sub { color: var(--muted); max-width: 46em; margin-bottom: 36px; }
+
+  /* install steps: a real sequence, so numbered */
+  .steps { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+  .steps-col h3 {
+    font-family: var(--mono);
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 18px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--ink);
+  }
+  ol.install { list-style: none; counter-reset: step; }
+  ol.install li {
+    counter-increment: step;
+    position: relative;
+    padding: 0 0 18px 44px;
+  }
+  ol.install li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 1px;
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    font-family: var(--display);
+    font-stretch: 75%;
+    font-weight: 900;
+    font-size: 0.95rem;
+    background: var(--ink);
+    color: var(--paper);
+  }
+  ol.install code, .note code {
+    font-family: var(--mono);
+    font-size: 0.85em;
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    padding: 1px 6px;
+    overflow-wrap: anywhere;
+  }
+  .note {
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-left: 4px solid var(--amber);
+    background: var(--card);
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+
+  /* detector grid */
+  .detect-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .detect {
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    padding: 22px;
+  }
+  .detect .id {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--warn);
+    display: block;
+    margin-bottom: 12px;
+  }
+  .detect h3 {
+    font-family: var(--display);
+    font-stretch: 75%;
+    font-weight: 700;
+    font-size: 1.2rem;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .detect p { font-size: 0.92rem; color: var(--muted); }
+
+  /* privacy */
+  .privacy { background: var(--ink); color: var(--paper); }
+  .privacy h2 .accent { color: var(--amber); }
+  .privacy .section-sub { color: #B9C1CC; }
+  .privacy ul { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 14px 40px; max-width: 60em; }
+  .privacy li {
+    padding-left: 26px;
+    position: relative;
+    color: #DDE2E9;
+    font-size: 0.95rem;
+  }
+  .privacy li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: var(--amber);
+    font-weight: 700;
+  }
+
+  footer {
+    border-top: 1px solid var(--hairline);
+    padding: 28px 0 40px;
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    color: var(--muted);
+  }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 28px; justify-content: space-between; }
+  footer a { color: var(--muted); }
+  footer a:hover { color: var(--ink); }
+
+  @media (max-width: 860px) {
+    .hero { padding: 48px 0 48px; }
+    .hero-grid { grid-template-columns: 1fr; gap: 40px; }
+    .verdict { justify-self: start; }
+    .steps { grid-template-columns: 1fr; }
+    .detect-grid { grid-template-columns: 1fr; }
+    .privacy ul { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="tier-strip" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+
+<header class="top">
+  <div class="wrap top-bar">
+    <a class="brand" href="#"><span class="eye">FRAUD</span> WATCH</a>
+    <nav>
+      <a href="#download">download</a>
+      <a href="#install">install</a>
+      <a href="https://github.com/ahhh/Fraud-Watch">github</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="hero" id="download">
+    <div class="wrap hero-grid">
+      <div>
+        <p class="eyebrow">v0.1.0 · MV3 browser extension · MIT license</p>
+        <h1>See the scam<br>before <span class="accent">it sees you.</span></h1>
+        <p class="lede">
+          Fraud Watch is a <strong>local-first fraud-defense extension</strong>. It watches for
+          high-risk moments — fake logins, wallet-seed grabs, scareware popups — runs
+          deterministic detectors <strong>entirely on your device</strong>, and shows a calm,
+          specific warning before harm occurs. Nothing leaves your browser.
+        </p>
+        <div class="dl-row">
+          <a class="btn btn-primary" href="https://github.com/ahhh/Fraud-Watch/releases/download/v0.1.0/fraud-watch-0.1.0-chrome.zip">Download for Chrome</a>
+          <a class="btn btn-secondary" href="https://github.com/ahhh/Fraud-Watch/releases/download/v0.1.0/fraud-watch-0.1.0-firefox.zip">Download for Firefox</a>
+        </div>
+        <p class="dl-meta">
+          ~25 KB zip · no account, no backend, no telemetry ·
+          <a href="https://github.com/ahhh/Fraud-Watch/releases">all releases</a> ·
+          <a href="https://github.com/ahhh/Fraud-Watch">source code</a>
+        </p>
+      </div>
+
+      <div class="verdict" role="img" aria-label="Example Fraud Watch verdict: a fake bank login page rated 9 out of 10 risk, tier BLOCK.">
+        <div class="vc-head">
+          <span>FRAUD WATCH · VERDICT</span>
+          <span class="vc-site">secure-bankofarnerica.com</span>
+        </div>
+        <div class="vc-rating">
+          <div class="vc-score">9<small>/10</small></div>
+          <span class="vc-tier">BLOCK</span>
+        </div>
+        <ul class="vc-why">
+          <li>Brand "Bank of America" embedded in look-alike domain</li>
+          <li>Login form submits credentials cross-origin</li>
+          <li>Domain registered too recently to trust</li>
+        </ul>
+        <div class="vc-bars">
+          <div class="vc-bar"><span>url_domain</span><span class="track"><span class="fill" style="width:92%"></span></span><span>92</span></div>
+          <div class="vc-bar"><span>form_intent</span><span class="track"><span class="fill" style="width:78%"></span></span><span>78</span></div>
+          <div class="vc-bar"><span>popup_scareware</span><span class="track"><span class="fill" style="width:12%"></span></span><span>12</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap">
+      <h2>Install in about a minute</h2>
+      <p class="section-sub">
+        Fraud Watch isn't on the extension stores yet, so you load the release build
+        yourself. It's a normal developer-mode install — no build tools needed.
+      </p>
+      <div class="steps">
+        <div class="steps-col">
+          <h3>Chrome / Edge / Brave</h3>
+          <ol class="install">
+            <li>Download the Chrome zip above and unzip it. You'll get a folder containing <code>manifest.json</code>.</li>
+            <li>Open <code>chrome://extensions</code> and switch on <strong>Developer mode</strong> (top right).</li>
+            <li>Click <strong>Load unpacked</strong> and select the unzipped folder.</li>
+            <li>Pin <strong>Fraud Watch</strong> from the puzzle-piece menu. Click it on any page to see that page's risk rating.</li>
+          </ol>
+        </div>
+        <div class="steps-col">
+          <h3>Firefox</h3>
+          <ol class="install">
+            <li>Download the Firefox zip above. No need to unzip it.</li>
+            <li>Open <code>about:debugging#/runtime/this-firefox</code>.</li>
+            <li>Click <strong>Load Temporary Add-on…</strong> and select the zip file.</li>
+          </ol>
+          <p class="note">
+            Firefox removes temporary add-ons when it closes, so you'll reload it each
+            session. A signed permanent build is planned once the extension is submitted
+            to addons.mozilla.org.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>What it watches for</h2>
+      <p class="section-sub">
+        Independent analyzers each score the page; a weighted policy engine turns those
+        scores into one 1–10 site rating and, when needed, an inline warning you can
+        always override.
+      </p>
+      <div class="detect-grid">
+        <article class="detect">
+          <span class="id">url_domain_analyzer</span>
+          <h3>Look-alike domains</h3>
+          <p>Punycode tricks, brand names buried in subdomains, typosquats, and credential pages living on off-brand domains.</p>
+        </article>
+        <article class="detect">
+          <span class="id">form_intent_analyzer</span>
+          <h3>Risky forms</h3>
+          <p>Login, payment, bank, tax, and crypto-seed intent — and forms that quietly submit your credentials to a different origin.</p>
+        </article>
+        <article class="detect">
+          <span class="id">popup_scareware_analyzer</span>
+          <h3>Scareware & fake support</h3>
+          <p>Fake system warnings, "call Microsoft now" remote-support scripts, and fullscreen lock-in attempts.</p>
+        </article>
+      </div>
+      <p class="note" style="max-width: 46em;">
+        Bonus: a user-triggered <strong>AI-text detector</strong> highlights suspected
+        AI-written content inline with a 0–100 score — fully offline by default.
+      </p>
+    </div>
+  </section>
+
+  <section class="privacy">
+    <div class="wrap">
+      <h2>Protection, <span class="accent">not spyware</span></h2>
+      <p class="section-sub">
+        The whole design starts from one rule: you should feel protected without being watched.
+      </p>
+      <ul>
+        <li>Everything runs locally — this build has no backend and sends no telemetry.</li>
+        <li>Never reads what you type into password, OTP, card, or seed fields — it classifies fields by name and type only.</li>
+        <li>Snippets are redacted and size-capped before they cross any trust boundary.</li>
+        <li>Narrow permissions: storage, the active tab, and scripting. Broad host access stays opt-in.</li>
+        <li>Every warning is overridable — "Trust this site" always wins.</li>
+        <li>Open source under MIT. Read every detector yourself.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Fraud Watch v0.1.0 · MIT © Dan Borges</span>
+    <span>
+      <a href="https://github.com/ahhh/Fraud-Watch">github.com/ahhh/Fraud-Watch</a> ·
+      <a href="https://github.com/ahhh/Fraud-Watch/issues">report an issue</a>
+    </span>
+  </div>
+</footer>
+
+</body>
+</html>
